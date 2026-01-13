@@ -122,7 +122,7 @@ def save_summary(summary: SermonSummary, output_dir: Path, base_name: str) -> No
             f.write("## Bible Verses\n\n")
             if summary.bible_verses:
                 for verse in summary.bible_verses:
-                    f.write(f"- {verse}\n")
+                    f.write(f"- **{verse.verse}** - {verse.reference}\n")
             else:
                 f.write("No verses cited.\n")
         print(f"✓ Saved Markdown summary: {md_path}", flush=True)
