@@ -20,56 +20,90 @@ An automated workflow to transcribe video recordings of church services and gene
 
 ## Setup
 
-1. **Clone or navigate to this directory**
+The easiest way to set up the project is using the automated setup script:
 
-2. **Pin Python version** (optional, but recommended):
+1. **Run the setup script**:
    ```bash
-   uv python pin 3.13
+   ./setup.sh
    ```
 
-3. **Create a virtual environment with uv**:
-   ```bash
-   uv venv --python 3.13
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
+   This script will:
+   - Check for and install `uv` if needed
+   - Verify `ffmpeg` is installed
+   - Pin Python 3.13
+   - Create a virtual environment
+   - Install all dependencies
+   - Create the `input/` directory if it doesn't exist
+   - Check for `.env` file
 
-4. **Install dependencies**:
-   ```bash
-   uv pip install -r requirements.txt
-   ```
-
-5. **Configure API key**:
-   Create a `.env` file in the project root with your Gemini API key:
+2. **Configure API key**:
+   Create a `.env` file in the **project root** (not in `src/`) with your Gemini API key:
    ```bash
    echo "GEMINI_API_KEY=your_key_here" > .env
    ```
-   Or manually create `.env` with:
+   Or manually create `.env` in the project root with:
    ```
    GEMINI_API_KEY=your_key_here
    ```
    Get your API key from: https://aistudio.google.com/apikey
 
-6. **Place your MKV files** in the `input/` directory
+3. **Place your MKV files** in the `input/` directory
+
+### Manual Setup (Alternative)
+
+If you prefer to set up manually:
+
+1. **Pin Python version**:
+   ```bash
+   uv python pin 3.13
+   ```
+
+2. **Create a virtual environment**:
+   ```bash
+   uv venv --python 3.13
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
+
+3. **Install dependencies**:
+   ```bash
+   uv pip install -r requirements.txt
+   ```
+
+4. **Create `.env` file** in the project root (see step 2 above)
 
 ## Usage
 
-Run the main script:
+### Recommended: Use the workflow script
+
+Run the automated workflow script:
 
 ```bash
+./run_workflow.sh
+```
+
+This script will:
+- Check that the virtual environment exists
+- Verify `.env` file is present
+- Check for MKV files in `input/` directory
+- Activate the virtual environment
+- Run the transcription and summarization workflow
+
+### Manual execution
+
+Alternatively, you can run the workflow manually:
+
+```bash
+source .venv/bin/activate  # Activate virtual environment
 python -m src.main
 ```
 
-Or if you've set up the package as a module:
-
-```bash
-python -m ser_summary.src.main
-```
+### What the workflow does
 
 The workflow will:
 1. Scan `input/` for all `.mkv` files
-2. Transcribe each file using faster-whisper
+2. Transcribe each file using faster-whisper (saves transcripts to `temp/` for reuse)
 3. Generate summaries using Gemini API
-4. Save outputs to `src/output/` as JSON and Markdown
+4. Save outputs to `src/output/` as JSON and Markdown files
 
 ## File Structure
 
@@ -77,17 +111,21 @@ The workflow will:
 ser_summary/
 ├── input/                    # Place MKV files here
 │   └── *.mkv
+├── temp/                     # Temporary transcript files (auto-created)
+│   └── *_transcript.txt
 ├── src/
 │   ├── main.py               # Entry point
 │   ├── transcribe.py         # Transcription logic
 │   ├── summarize.py          # Gemini API integration
 │   ├── prompts.py            # Prompt templates
 │   ├── typing.py             # Pydantic schemas
-│   └── output/               # Generated summaries
+│   └── output/               # Generated summaries (auto-created)
 │       ├── *_summary.json
 │       └── *_summary.md
 ├── .env                      # Your API keys (not in git)
-├── .env.example              # Template
+├── .venv/                    # Virtual environment (auto-created by setup.sh)
+├── setup.sh                  # Automated setup script
+├── run_workflow.sh           # Workflow execution script
 ├── requirements.txt          # Python dependencies
 └── README.md                 # This file
 ```
@@ -124,8 +162,9 @@ Customize prompts in `src/prompts.py`:
 ## Troubleshooting
 
 ### "GEMINI_API_KEY environment variable is not set"
-- Make sure you've created `.env` file with your API key
-- Check that `python-dotenv` is installed
+- Make sure you've created `.env` file in the **project root** (not in `src/`)
+- Verify the file contains: `GEMINI_API_KEY=your_key_here`
+- Check that `python-dotenv` is installed (should be in requirements.txt)
 
 ### "File not found" errors
 - Ensure MKV files are in the `input/` directory
