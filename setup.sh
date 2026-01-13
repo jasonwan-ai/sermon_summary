@@ -111,16 +111,12 @@ fi
 uv pip install -r requirements.txt
 echo -e "${GREEN}✓ Dependencies installed${NC}\n"
 
-# Check for .env file
-echo -e "${BLUE}Checking for .env file...${NC}"
-if [ ! -f ".env" ]; then
-    echo -e "${YELLOW}⚠ .env file not found${NC}"
-    echo -e "${YELLOW}You need to create a .env file with your Gemini API key:${NC}"
-    echo -e "  echo 'GEMINI_API_KEY=your_key_here' > .env"
-    echo -e "  Get your API key from: https://aistudio.google.com/apikey\n"
-else
-    echo -e "${GREEN}✓ .env file found${NC}\n"
-fi
+# Create .env file
+echo -e "${BLUE}Creating .env file...${NC}"
+cp env.example .env
+echo -e "${GREEN}✓ .env file created${NC}\n"
+echo -e "${GREEN}Please fill in your Gemini API key in the .env file${NC}\n"
+echo -e "Get your API key from: https://aistudio.google.com/apikey\n"
 
 # Check for input directory
 echo -e "${BLUE}Checking for input directory...${NC}"

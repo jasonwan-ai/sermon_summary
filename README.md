@@ -34,14 +34,11 @@ The easiest way to set up the project is using the automated setup script:
    - Create a virtual environment
    - Install all dependencies
    - Create the `input/` directory if it doesn't exist
-   - Check for `.env` file
+   - Create `.env` file 
 
 2. **Configure API key**:
-   Create a `.env` file in the **project root** (not in `src/`) with your Gemini API key:
-   ```bash
-   echo "GEMINI_API_KEY=your_key_here" > .env
-   ```
-   Or manually create `.env` in the project root with:
+   Fill in your Gemini API key in the .env file created by the script
+
    ```
    GEMINI_API_KEY=your_key_here
    ```
