@@ -2,10 +2,10 @@ import os
 import subprocess
 
 from faster_whisper import WhisperModel
-from pydantic import Basemodel
+from pydantic import BaseModel
 from typing import List
 
-class TextSegment(Basemodel):
+class TextSegment(BaseModel):
     start_time:str
     end_time: str
     segment:str
