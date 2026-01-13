@@ -29,7 +29,7 @@ def get_directories() -> tuple[Path, Path, Path]:
     project_root = script_dir.parent
     input_dir = project_root / "input"
     temp_dir = project_root / "temp"
-    output_dir = script_dir / "output"
+    output_dir = project_root / "output"
     
     # Create temp_dir if it doesn't exist
     temp_dir.mkdir(parents=True, exist_ok=True)

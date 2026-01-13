@@ -2,4 +2,5 @@ input
 .mkv
 .env
 __pycache__/
-.txt
+temp/
+output/
