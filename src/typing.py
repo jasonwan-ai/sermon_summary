@@ -12,3 +12,9 @@ class BibleVerse(BaseModel):
 class SermonSummary(BaseModel):
     summary_markdown: str
     bible_verses: List[BibleVerse] = Field(default_factory=list)
+
+
+class TimestampResponse(BaseModel):
+    start_time: float
+    end_time: float
+    reason: str
