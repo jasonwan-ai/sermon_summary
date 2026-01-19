@@ -95,8 +95,13 @@ def transcribe_file(input_path: str, model_size: str = "medium") -> tuple[str, s
     audio_path = os.path.join(input_dir, base_name + "_temp_audio.wav")
     
     print(f"Loading Whisper model ({model_size})...", flush=True)
+    device = "auto"
+    compute_type = "int8"
+    print(f"  Device: {device}", flush=True)
+    print(f"  Compute type: {compute_type}", flush=True)
     model_load_start = time.perf_counter()
-    model = WhisperModel(model_size, device="mps", compute_type="float32")
+    model = WhisperModel(model_size, device=device, compute_type=compute_type)
+
     model_load_time = time.perf_counter() - model_load_start
     print(f"Model loaded. (Loading time: {model_load_time:.2f} seconds)", flush=True)
     
@@ -152,12 +157,16 @@ def _get_or_load_model(model_size: str, device: str = "auto", compute_type: str 
     
     if cache_key not in _model_cache:
         print(f"Loading Whisper model ({model_size})...", flush=True)
+        print(f"  Device: {device}", flush=True)
+        print(f"  Compute type: {compute_type}", flush=True)
         model_load_start = time.perf_counter()
         _model_cache[cache_key] = WhisperModel(model_size, device=device, compute_type=compute_type)
         model_load_time = time.perf_counter() - model_load_start
         print(f"Model loaded. (Loading time: {model_load_time:.2f} seconds)", flush=True)
     else:
         print(f"Using cached Whisper model ({model_size})", flush=True)
+        print(f"  Device: {device}", flush=True)
+        print(f"  Compute type: {compute_type}", flush=True)
     
     return _model_cache[cache_key]
 
@@ -216,8 +225,10 @@ def transcribe_wav_file(
     if not os.path.exists(wav_path):
         raise FileNotFoundError(f"File not found: {wav_path}")
     
+    device = "auto"
+    compute_type = "int8"
     model_load_start = time.perf_counter()
-    model = _get_or_load_model(model_size, device="auto", compute_type="float32")
+    model = _get_or_load_model(model_size, device=device, compute_type=compute_type)
     model_load_time = time.perf_counter() - model_load_start
     
     try:
@@ -231,7 +242,7 @@ def transcribe_wav_file(
         time_stamp_lines: list[str]=[]
         for segment in segments:
             segment_with_timestamp = f"[%.2fs -> %.2fs] %s" % (segment.start, segment.end, segment.text)
-            # print(segment_with_timestamp, flush=True)
+            print(segment_with_timestamp, flush=True)
             
             transcript_lines.append(segment.text.strip())
             time_stamp_lines.append(segment_with_timestamp.strip())
@@ -241,6 +252,13 @@ def transcribe_wav_file(
         
         total_time = time.perf_counter() - transcription_start
         print(f"Transcription ({model_size} model): {total_time:.2f} seconds (loading: {model_load_time:.2f}s, transcribing: {transcribe_time:.2f}s)", flush=True)
+        
+        # Print the full unformatted transcript text
+        print(f"\n{'='*60}", flush=True)
+        print(f"Full Transcript Text ({len(transcript_text)} characters):", flush=True)
+        print(f"{'='*60}", flush=True)
+        print(transcript_text, flush=True)
+        print(f"{'='*60}\n", flush=True)
         
         return transcript_text, timestamp_text
     

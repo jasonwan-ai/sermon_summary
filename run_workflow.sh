@@ -70,8 +70,9 @@ log_and_echo "${BLUE}Starting workflow...${NC}\n"
 
 # Execute workflow and tee output to both terminal and log file
 # Capture both stdout and stderr, with stderr redirected to stdout
+# Use -u flag for unbuffered Python output to ensure real-time printing
 set +e  # Temporarily disable exit on error to capture exit code
-uv run python -m src.main 2>&1 | tee -a "$LOG_FILE"
+uv run python -u -m src.main 2>&1 | tee -a "$LOG_FILE"
 EXIT_CODE=${PIPESTATUS[0]}  # Capture exit code of uv run command
 set -e  # Re-enable exit on error
 
