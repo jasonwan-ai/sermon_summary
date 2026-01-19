@@ -62,8 +62,14 @@ def summarize_sermon(transcript: str, date: str) -> tuple[SermonSummary, int, in
     print(f"  Model: {model}", flush=True)
     print(f"  System Prompt:", flush=True)
     print(f"  {system_prompt}", flush=True)
-    print(f"  User Prompt (length: {len(user_prompt)} characters):", flush=True)
-    print(f"  {user_prompt}", flush=True)
+    print(f"  User Prompt Template (transcript length: {len(transcript)} characters):", flush=True)
+    prompt_parts = SUMMARIZE_SUMMARY_PROMPT.split('{transcript}')
+    if len(prompt_parts) > 1:
+        print(f"  {prompt_parts[0]}", flush=True)
+        print(f"  [Transcript text - see above for full content]", flush=True)
+        print(f"  {prompt_parts[1]}", flush=True)
+    else:
+        print(f"  {SUMMARIZE_SUMMARY_PROMPT}", flush=True)
     print(f"{'='*60}\n", flush=True)
     
     try:
@@ -151,8 +157,14 @@ def extract_timestamp(timestamp_text: str) -> tuple[TimestampResponse, int, int]
     print(f"  Model: {model}", flush=True)
     print(f"  System Prompt:", flush=True)
     print(f"  {system_prompt}", flush=True)
-    print(f"  User Prompt (length: {len(user_prompt)} characters):", flush=True)
-    print(f"  {user_prompt}", flush=True)
+    print(f"  User Prompt Template (timestamp text length: {len(timestamp_text)} characters):", flush=True)
+    prompt_parts = EXTRACT_TIMESTAMP_PROMPT.split('{timestamp_text}')
+    if len(prompt_parts) > 1:
+        print(f"  {prompt_parts[0]}", flush=True)
+        print(f"  [Timestamp text - see above for full content]", flush=True)
+        print(f"  {prompt_parts[1]}", flush=True)
+    else:
+        print(f"  {EXTRACT_TIMESTAMP_PROMPT}", flush=True)
     print(f"{'='*60}\n", flush=True)
     
     try:
