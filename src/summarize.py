@@ -1,17 +1,21 @@
 import os
+import time
 
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-from .prompts import SYSTEM_PROMPT, USER_PROMPT
-from .typing import SermonSummary
+from .prompts import SUMMARIZE_SYSTEM_PROMPT, SUMMARIZE_SUMMARY_PROMPT, EXTRACT_TIMESTAMP_PROMPT
+from .typing import SermonSummary, TimestampResponse
 
 # Load environment variables
 load_dotenv()
 
+# @singleton client
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 
-def summarize_sermon(transcript: str, date: str) -> SermonSummary:
+
+def summarize_sermon(transcript: str, date: str) -> tuple[SermonSummary, int, int]:
     """
     Summarize a sermon transcript using Gemini API.
     
@@ -26,16 +30,11 @@ def summarize_sermon(transcript: str, date: str) -> SermonSummary:
         ValueError: If GEMINI_API_KEY is not set
         RuntimeError: If API call fails or response cannot be parsed
     """
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        raise ValueError("GEMINI_API_KEY environment variable is not set. Please create a .env file with your API key.")
-    
-    client = genai.Client(api_key=api_key)
     model = "gemini-2.5-flash"
     
     # Prepare prompts
-    system_prompt = SYSTEM_PROMPT
-    user_prompt = USER_PROMPT.format(date=date, transcript=transcript)
+    system_prompt = SUMMARIZE_SYSTEM_PROMPT
+    user_prompt = SUMMARIZE_SUMMARY_PROMPT.format(transcript=transcript)
     
     # Build request
     contents = [
@@ -56,15 +55,26 @@ def summarize_sermon(transcript: str, date: str) -> SermonSummary:
         response_json_schema=SermonSummary.model_json_schema(),
     )
     
+    # Log API call details
     print("Sending transcript to Gemini API for summarization...", flush=True)
+    print(f"\n{'='*60}", flush=True)
+    print(f"API Call Details - Summarization:", flush=True)
+    print(f"  Model: {model}", flush=True)
+    print(f"  System Prompt:", flush=True)
+    print(f"  {system_prompt}", flush=True)
+    print(f"  User Prompt (length: {len(user_prompt)} characters):", flush=True)
+    print(f"  {user_prompt}", flush=True)
+    print(f"{'='*60}\n", flush=True)
     
     try:
-        # Generate content
+
+        api_start = time.perf_counter()
         response = client.models.generate_content(
             model=model,
             contents=contents,
             config=generate_content_config,
         )
+        api_time = time.perf_counter() - api_start
         
         if not response.text:
             raise RuntimeError("Empty response from Gemini API")
@@ -75,8 +85,108 @@ def summarize_sermon(transcript: str, date: str) -> SermonSummary:
         except Exception as e:
             raise RuntimeError(f"Failed to validate JSON response from Gemini API: {e}\nResponse: {response.text}")
         
+
+        tokens_sent, tokens_received = 0, 0
+
+        if hasattr(response, 'usage_metadata') and response.usage_metadata:
+            tokens_sent = getattr(response.usage_metadata, 'prompt_token_count', 0)
+            tokens_received = getattr(response.usage_metadata, 'candidates_token_count', 0)
+        
         print("Summary generated successfully.", flush=True)
-        return summary
+        print(f"  API call duration: {api_time:.2f} seconds", flush=True)
+        print(f"  Tokens sent: {tokens_sent}", flush=True)
+        print(f"  Tokens received: {tokens_received}", flush=True)
+        
+        return summary, tokens_sent, tokens_received
+    
+    except Exception as e:
+        if isinstance(e, RuntimeError):
+            raise
+        raise RuntimeError(f"Error calling Gemini API: {e}") from e
+
+
+
+def extract_timestamp(timestamp_text: str) -> tuple[TimestampResponse, int, int]:
+    """
+    Extract the start and end time of the sermon from the timestamp text.
+    
+    Args:
+        timestamp_text: Text containing timestamped segments in format [start_time -> end_time] text
+    
+    Returns:
+        TimestampResponse object with start_time and end_time in seconds
+    
+    Raises:
+        RuntimeError: If API call fails or response cannot be parsed
+    """
+    model = "gemini-2.5-flash"
+    
+    # Prepare prompts
+    system_prompt = EXTRACT_TIMESTAMP_PROMPT
+    user_prompt = EXTRACT_TIMESTAMP_PROMPT.format(timestamp_text=timestamp_text)
+    
+    # Build request
+    contents = [
+        types.Content(
+            role="user",
+            parts=[
+                types.Part.from_text(text=user_prompt),
+            ],
+        ),
+    ]
+    
+    # Configure generation with Pydantic schema
+    generate_content_config = types.GenerateContentConfig(
+        system_instruction=[
+            types.Part.from_text(text=system_prompt),
+        ],
+        response_mime_type="application/json",
+        response_json_schema=TimestampResponse.model_json_schema(),
+    )
+    
+    # Log API call details
+    print("Sending timestamp text to Gemini API for timestamp extraction...", flush=True)
+    print(f"\n{'='*60}", flush=True)
+    print(f"API Call Details - Timestamp Extraction:", flush=True)
+    print(f"  Model: {model}", flush=True)
+    print(f"  System Prompt:", flush=True)
+    print(f"  {system_prompt}", flush=True)
+    print(f"  User Prompt (length: {len(user_prompt)} characters):", flush=True)
+    print(f"  {user_prompt}", flush=True)
+    print(f"{'='*60}\n", flush=True)
+    
+    try:
+        # Generate content with timing
+        api_start = time.perf_counter()
+        response = client.models.generate_content(
+            model=model,
+            contents=contents,
+            config=generate_content_config,
+        )
+        api_time = time.perf_counter() - api_start
+        
+        if not response.text:
+            raise RuntimeError("Empty response from Gemini API")
+        
+        # Validate response using Pydantic model
+        try:
+            timestamp_response = TimestampResponse.model_validate_json(response.text)
+        except Exception as e:
+            raise RuntimeError(f"Failed to validate JSON response from Gemini API: {e}\nResponse: {response.text}")
+        
+        # Log token usage and timing
+        tokens_sent, tokens_received = 0, 0
+
+        if hasattr(response, 'usage_metadata') and response.usage_metadata:
+            tokens_sent = getattr(response.usage_metadata, 'prompt_token_count', 0)
+            tokens_received = getattr(response.usage_metadata, 'candidates_token_count', 0)        
+        print("Timestamp extraction complete.", flush=True)
+        print(f"  API call duration: {api_time:.2f} seconds", flush=True)
+        print(f"  Tokens sent: {tokens_sent}", flush=True)
+        print(f"  Tokens received: {tokens_received}", flush=True)
+        print(f"  Sermon boundaries: {timestamp_response.start_time:.2f}s -> {timestamp_response.end_time:.2f}s, reason: {timestamp_response.reason}", flush=True)
+        
+        return timestamp_response, tokens_sent, tokens_received
     
     except Exception as e:
         if isinstance(e, RuntimeError):

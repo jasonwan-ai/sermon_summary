@@ -5,7 +5,7 @@ Helper functions for file I/O and path operations.
 
 import json
 from pathlib import Path
-
+from datetime import datetime
 from .typing import SermonSummary
 
 
@@ -16,11 +16,13 @@ def get_directories() -> tuple[Path, Path, Path]:
     Returns:
         Tuple of (input_dir, temp_dir, output_dir) paths
     """
+    datetime_str = datetime.now().strftime("%Y%m%d_%H%M") # 260114_0947 (date time to indicate trial runs)
+
     script_dir = Path(__file__).parent
     project_root = script_dir.parent
-    input_dir = project_root / "input"
-    temp_dir = project_root / "temp"
-    output_dir = project_root / "output"
+    input_dir = project_root /  "input"
+    temp_dir = project_root / "temp" 
+    output_dir = project_root / "output" 
     
     # Create temp_dir if it doesn't exist
     temp_dir.mkdir(parents=True, exist_ok=True)
@@ -93,7 +95,7 @@ def save_transcript(transcript: str, transcript_path: Path) -> None:
         raise IOError(f"Failed to save transcript to {transcript_path}: {e}") from e
 
 
-def save_summary(summary: SermonSummary, output_dir: Path, base_name: str) -> None:
+def save_summary(summary: SermonSummary, output_dir: Path, base_name: str,date: str) -> None:
     """
     Save summary to JSON and markdown files.
     
@@ -113,16 +115,16 @@ def save_summary(summary: SermonSummary, output_dir: Path, base_name: str) -> No
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(summary.model_dump(), f, indent=2, ensure_ascii=False)
         print(f"✓ Saved JSON summary: {json_path}", flush=True)
-        
+ 
         # Save Markdown
         md_path = output_dir / f"{base_name}_summary.md"
         with open(md_path, "w", encoding="utf-8") as f:
-            f.write("# Sermon Summary\n\n")
+            f.write(f"# Sermon Summary -- {date}\n\n")
             f.write(f"## Summary\n\n{summary.summary_markdown}\n\n")
             f.write("## Bible Verses\n\n")
             if summary.bible_verses:
                 for verse in summary.bible_verses:
-                    f.write(f"- {verse}\n")
+                    f.write(f"- **{verse.verse}** \n\t - {verse.reference}\n")
             else:
                 f.write("No verses cited.\n")
         print(f"✓ Saved Markdown summary: {md_path}", flush=True)

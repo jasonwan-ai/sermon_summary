@@ -14,9 +14,22 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo -e "${BLUE}========================================${NC}"
-echo -e "${BLUE}Running Sermon Summary Workflow${NC}"
-echo -e "${BLUE}========================================${NC}\n"
+# Create logs directory if it doesn't exist
+mkdir -p logs
+
+# Generate log filename with current datetime
+LOG_FILENAME="logs/$(date +%Y%m%d_%H%M%S).log"
+LOG_FILE="$SCRIPT_DIR/$LOG_FILENAME"
+
+# Function to log and display messages
+log_and_echo() {
+    echo -e "$@" | tee -a "$LOG_FILE"
+}
+
+log_and_echo "${BLUE}========================================${NC}"
+log_and_echo "${BLUE}Running Sermon Summary Workflow${NC}"
+log_and_echo "${BLUE}========================================${NC}"
+log_and_echo "${BLUE}Log file: ${LOG_FILENAME}${NC}\n"
 
 # Check if virtual environment exists
 if [ ! -d ".venv" ]; then
@@ -46,25 +59,33 @@ if [ "$MKV_COUNT" -eq 0 ]; then
     exit 1
 fi
 
-echo -e "${GREEN}Found ${MKV_COUNT} MKV file(s) to process${NC}\n"
+log_and_echo "${GREEN}Found ${MKV_COUNT} MKV file(s) to process${NC}\n"
 
 # Activate virtual environment
-echo -e "${BLUE}Activating virtual environment...${NC}"
+log_and_echo "${BLUE}Activating virtual environment...${NC}"
 source .venv/bin/activate
 
-# Run the workflow
-echo -e "${BLUE}Starting workflow...${NC}\n"
-uv run python -m src.main
+# Run the workflow and capture all output to log file
+log_and_echo "${BLUE}Starting workflow...${NC}\n"
 
-# Check exit status
-if [ $? -eq 0 ]; then
-    echo -e "\n${GREEN}========================================${NC}"
-    echo -e "${GREEN}Workflow completed successfully!${NC}"
-    echo -e "${GREEN}========================================${NC}\n"
-    echo -e "Check the ${BLUE}src/output/${NC} directory for your summaries.\n"
+# Execute workflow and tee output to both terminal and log file
+# Capture both stdout and stderr, with stderr redirected to stdout
+set +e  # Temporarily disable exit on error to capture exit code
+uv run python -m src.main 2>&1 | tee -a "$LOG_FILE"
+EXIT_CODE=${PIPESTATUS[0]}  # Capture exit code of uv run command
+set -e  # Re-enable exit on error
+
+# Check exit status and output final message
+if [ $EXIT_CODE -eq 0 ]; then
+    log_and_echo "\n${GREEN}========================================${NC}"
+    log_and_echo "${GREEN}Workflow completed successfully!${NC}"
+    log_and_echo "${GREEN}========================================${NC}\n"
+    log_and_echo "Check the ${BLUE}output/${NC} directory for your summaries."
+    log_and_echo "Log file saved to: ${BLUE}${LOG_FILENAME}${NC}\n"
 else
-    echo -e "\n${RED}========================================${NC}"
-    echo -e "${RED}Workflow failed${NC}"
-    echo -e "${RED}========================================${NC}\n"
-    exit 1
+    log_and_echo "\n${RED}========================================${NC}"
+    log_and_echo "${RED}Workflow failed${NC}"
+    log_and_echo "${RED}========================================${NC}\n"
+    log_and_echo "Log file saved to: ${BLUE}${LOG_FILENAME}${NC}\n"
+    exit $EXIT_CODE
 fi
