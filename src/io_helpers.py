@@ -4,9 +4,81 @@ Helper functions for file I/O and path operations.
 """
 
 import json
+import os
 from pathlib import Path
 from datetime import datetime
+from dotenv import load_dotenv
 from .typing import SermonSummary
+
+# Load environment variables
+load_dotenv()
+
+
+class APIKeyRotator:
+    """
+    Manages API key rotation for Gemini API with fallback keys.
+
+    Cycles through primary and fallback keys when rate limited.
+    """
+
+    def __init__(self):
+        """Initialize the rotator with all available keys."""
+        self.keys = []
+        self.current_index = 0
+
+        # Load primary key
+        primary_key = os.environ.get("GEMINI_API_KEY")
+        if primary_key:
+            self.keys.append(primary_key)
+
+        # Load fallback keys
+        for i in range(1, 4):
+            fallback_key = os.environ.get(f"GEMINI_API_KEY_FALLBACK_{i}")
+            if fallback_key:
+                self.keys.append(fallback_key)
+
+        if not self.keys:
+            raise ValueError(
+                "No Gemini API keys found. Please set GEMINI_API_KEY "
+                "and/or GEMINI_API_KEY_FALLBACK_1/2/3 in .env file"
+            )
+
+    def get_current_key(self) -> str:
+        """Get the current API key without rotating."""
+        return self.keys[self.current_index]
+
+    def rotate_key(self) -> str:
+        """
+        Rotate to the next available API key.
+
+        Returns:
+            The next API key in the rotation.
+
+        Raises:
+            RuntimeError: If all keys have been exhausted.
+        """
+        if self.current_index >= len(self.keys) - 1:
+            raise RuntimeError(
+                f"All {len(self.keys)} API keys exhausted. "
+                "Unable to continue processing."
+            )
+
+        self.current_index += 1
+        key_num = self.current_index if self.current_index > 0 else "primary"
+        print(
+            f"Rotating to API key #{key_num} "
+            f"(key {self.current_index + 1}/{len(self.keys)})",
+            flush=True,
+        )
+        return self.get_current_key()
+
+    def get_total_keys(self) -> int:
+        """Get the total number of available keys."""
+        return len(self.keys)
+
+    def get_current_key_index(self) -> int:
+        """Get the current key index (0 = primary)."""
+        return self.current_index
 
 
 def get_directories() -> tuple[Path, Path, Path]:
@@ -22,7 +94,7 @@ def get_directories() -> tuple[Path, Path, Path]:
 
     script_dir = Path(__file__).parent
     project_root = script_dir.parent
-    input_dir = project_root / "input"
+    input_dir = Path("/mnt/H21/sermon")
     temp_dir = project_root / "temp"
     output_dir = project_root / "output" / datetime_str
 

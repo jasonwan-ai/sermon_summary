@@ -52,7 +52,7 @@ if [ ! -d "input" ]; then
     exit 1
 fi
 
-VIDEO_COUNT=$(find input \( -name "*.mkv" -o -name "*.mp4" \) -type f | wc -l | tr -d ' ')
+VIDEO_COUNT=$(find -L input \( -name "*.mkv" -o -name "*.mp4" \) -type f | wc -l | tr -d ' ')
 if [ "$VIDEO_COUNT" -eq 0 ]; then
     echo -e "${YELLOW}⚠ No video files found in input/ directory${NC}"
     echo -e "${YELLOW}Please add your MKV or MP4 files to the input/ directory${NC}\n"
