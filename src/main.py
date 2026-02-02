@@ -2,7 +2,7 @@
 """
 Main entry point for sermon transcription and summarization workflow.
 
-Processes all MKV files in the input/ directory, transcribes them,
+Processes all MKV and MP4 files in the input/ directory, transcribes them,
 and generates summaries using Gemini API.
 """
 
@@ -35,24 +35,24 @@ def _is_gemini_unavailable(error: Exception) -> bool:
     )
 
 
-def convert_video(mkv_file: Path, base_name: str) -> tuple[str, str, float]:
+def convert_video(video_file: Path, base_name: str) -> tuple[str, str, float]:
     """
     Extract audio from video file.
 
     Args:
-        mkv_file: Path to the MKV file
+        video_file: Path to the video file (MKV or MP4)
         base_name: Base filename (without extension)
 
     Returns:
         Tuple of (wav_path, cropped_wav_path, extract_time)
     """
     print("Step 0: Extracting audio from video file", flush=True)
-    input_dir = os.path.dirname(str(mkv_file))
+    input_dir = os.path.dirname(str(video_file))
     wav_path = os.path.join(input_dir, base_name + "_audio.wav")
     cropped_wav_path = os.path.join(input_dir, base_name + "_cropped_audio.wav")
 
     extract_start = time.perf_counter()
-    run_ffmpeg_extract_wav(str(mkv_file), wav_path)
+    run_ffmpeg_extract_wav(str(video_file), wav_path)
     extract_time = time.perf_counter() - extract_start
     print(f"Audio extracted. (Time: {extract_time:.2f} seconds)\n", flush=True)
 
@@ -208,16 +208,16 @@ def summarize_and_save(
 
 
 def process_single_file(
-    mkv_file: Path,
+    video_file: Path,
     input_dir: Path,
     temp_dir: Path,
     output_dir: Path,
 ) -> bool:
     """
-    Process a single MKV file: transcribe (or load existing transcript) and summarize.
+    Process a single video file: transcribe (or load existing transcript) and summarize.
 
     Args:
-        mkv_file: Path to the MKV file to process
+        video_file: Path to the video file (MKV or MP4) to process
         input_dir: Input directory path
         temp_dir: Temporary directory for transcripts
         output_dir: Output directory for summaries
@@ -237,12 +237,12 @@ def process_single_file(
 
     try:
         # Extract date from filename
-        date = extract_date_from_filename(mkv_file.name)
+        date = extract_date_from_filename(video_file.name)
         print(f"Extracted date: {date}\n", flush=True)
 
-        base_name = Path(mkv_file).stem
+        base_name = Path(video_file).stem
 
-        wav_path, cropped_wav_path, extract_time = convert_video(mkv_file, base_name)
+        wav_path, cropped_wav_path, extract_time = convert_video(video_file, base_name)
 
         (
             transcript,
@@ -271,7 +271,7 @@ def process_single_file(
         total_api_time = api_times.get("timestamp", 0.0) + api_times["summary"]
 
         print(f"\n{'='*60}", flush=True)
-        print(f"✓ Successfully processed: {mkv_file.name}", flush=True)
+        print(f"✓ Successfully processed: {video_file.name}", flush=True)
         print(f"  Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
         print(f"  End time: {end_time.strftime('%Y-%m-%d %H:%M:%S')}", flush=True)
         print(f"  Processing time: {duration_str}", flush=True)
@@ -295,7 +295,7 @@ def process_single_file(
         end_time = datetime.now()
         duration_str = format_duration(start_time, end_time)
         print(
-            f"✗ File not found error processing {mkv_file.name}: {e}",
+            f"✗ File not found error processing {video_file.name}: {e}",
             file=sys.stderr,
             flush=True,
         )
@@ -311,7 +311,7 @@ def process_single_file(
         duration_str = format_duration(start_time, end_time)
         if _is_gemini_unavailable(e):
             print(
-                f"✗ Gemini service temporarily unavailable while processing {mkv_file.name}: {e}",
+                f"✗ Gemini service temporarily unavailable while processing {video_file.name}: {e}",
                 file=sys.stderr,
                 flush=True,
             )
@@ -322,7 +322,7 @@ def process_single_file(
             )
         else:
             print(
-                f"✗ Unexpected error processing {mkv_file.name}: {e}",
+                f"✗ Unexpected error processing {video_file.name}: {e}",
                 file=sys.stderr,
                 flush=True,
             )
@@ -348,7 +348,7 @@ def main() -> int:
     """
     Main workflow function.
 
-    Orchestrates the processing of all MKV files in the input directory.
+    Orchestrates the processing of all video files in the input directory.
     """
     # Get directories
     input_dir, temp_dir, output_dir = get_directories()
@@ -358,22 +358,22 @@ def main() -> int:
         print(f"Error: input directory not found: {input_dir}", file=sys.stderr)
         return 1
 
-    mkv_files = list(input_dir.glob("*.mkv"))
+    video_files = sorted(list(input_dir.glob("*.mkv")) + list(input_dir.glob("*.mp4")))
 
-    if not mkv_files:
-        print(f"No MKV files found in {input_dir}", file=sys.stderr)
+    if not video_files:
+        print(f"No MKV or MP4 files found in {input_dir}", file=sys.stderr)
         return 1
 
-    print(f"Found {len(mkv_files)} MKV file(s) to process\n", flush=True)
+    print(f"Found {len(video_files)} video file(s) to process\n", flush=True)
 
     success_count, error_count = 0, 0
 
-    for mkv_file in mkv_files:
+    for video_file in video_files:
         print(f"\n{'='*60}", flush=True)
-        print(f"Processing: {mkv_file.name}", flush=True)
+        print(f"Processing: {video_file.name}", flush=True)
         print(f"{'='*60}\n", flush=True)
 
-        if process_single_file(mkv_file, input_dir, temp_dir, output_dir):
+        if process_single_file(video_file, input_dir, temp_dir, output_dir):
             success_count += 1
         else:
             error_count += 1
