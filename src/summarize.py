@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
+from .io_helpers import APIKeyRotator
 from .prompts import (
     SUMMARIZE_SYSTEM_PROMPT,
     SUMMARIZE_SUMMARY_PROMPT,
@@ -15,8 +16,11 @@ from .typing import SermonSummary, TimestampResponse
 # Load environment variables
 load_dotenv()
 
-# @singleton client
-client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+# Initialize key rotator
+key_rotator = APIKeyRotator()
+
+# @singleton client - will be recreated when keys are rotated
+client = genai.Client(api_key=key_rotator.get_current_key())
 
 
 def _is_transient_error(error: Exception) -> bool:
@@ -32,6 +36,12 @@ def _is_transient_error(error: Exception) -> bool:
     return any(marker in msg for marker in transient_markers)
 
 
+def _is_rate_limit_error(error: Exception) -> bool:
+    """Check if the error is specifically a rate limit error."""
+    msg = str(error).lower()
+    return "rate limit" in msg or "429" in msg
+
+
 def _call_gemini_with_retry(
     *,
     model: str,
@@ -41,6 +51,8 @@ def _call_gemini_with_retry(
     max_attempts: int = 3,
     base_backoff: float = 2.0,
 ):
+    global client
+    
     for attempt in range(1, max_attempts + 1):
         try:
             return client.models.generate_content(
@@ -49,9 +61,28 @@ def _call_gemini_with_retry(
                 config=config,
             )
         except Exception as e:
+            is_rate_limited = _is_rate_limit_error(e)
             is_transient = _is_transient_error(e)
+            
+            # If rate limited, try rotating to a fallback key
+            if is_rate_limited and key_rotator.get_current_key_index() < key_rotator.get_total_keys() - 1:
+                try:
+                    next_key = key_rotator.rotate_key()
+                    client = genai.Client(api_key=next_key)
+                    print(
+                        f"Gemini {action_label} rate limited; retrying with fallback key...",
+                        flush=True,
+                    )
+                    # Retry immediately with new key
+                    continue
+                except RuntimeError as rotate_error:
+                    print(f"Key rotation failed: {rotate_error}", flush=True)
+                    raise
+            
+            # For other transient errors, use backoff retry
             if not is_transient or attempt == max_attempts:
                 raise
+            
             sleep_time = base_backoff ** (attempt - 1)
             print(
                 f"Gemini {action_label} request failed ({e}); retrying in {sleep_time:.1f}s [{attempt}/{max_attempts}]...",
