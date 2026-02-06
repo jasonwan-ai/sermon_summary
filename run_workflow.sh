@@ -52,14 +52,14 @@ if [ ! -d "input" ]; then
     exit 1
 fi
 
-MKV_COUNT=$(find input -name "*.mkv" -type f | wc -l | tr -d ' ')
-if [ "$MKV_COUNT" -eq 0 ]; then
-    echo -e "${YELLOW}⚠ No MKV files found in input/ directory${NC}"
-    echo -e "${YELLOW}Please add your MKV files to the input/ directory${NC}\n"
+VIDEO_COUNT=$(find input \( -name "*.mkv" -o -name "*.mp4" \) -type f | wc -l | tr -d ' ')
+if [ "$VIDEO_COUNT" -eq 0 ]; then
+    echo -e "${YELLOW}⚠ No video files found in input/ directory${NC}"
+    echo -e "${YELLOW}Please add your MKV or MP4 files to the input/ directory${NC}\n"
     exit 1
 fi
 
-log_and_echo "${GREEN}Found ${MKV_COUNT} MKV file(s) to process${NC}\n"
+log_and_echo "${GREEN}Found ${VIDEO_COUNT} video file(s) to process${NC}\n"
 
 # Activate virtual environment
 log_and_echo "${BLUE}Activating virtual environment...${NC}"

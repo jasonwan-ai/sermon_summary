@@ -10,6 +10,7 @@ class BibleVerse(BaseModel):
 
 
 class SermonSummary(BaseModel):
+    title: str
     summary_markdown: str
     bible_verses: List[BibleVerse] = Field(default_factory=list)
 
